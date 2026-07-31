@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import {
   PawPrint,
@@ -12,14 +12,78 @@ import {
   Trash2,
   Brush,
   Calendar,
+  LogOut,
   X,
 } from "lucide-react";
 import { useLailaData } from "./lib/useLailaData";
-import { FeedModal, WeightModal, MilestoneModal, GroomModal, SettingsModal } from "./components/Modals";
+import { FeedModal, WeightModal, MilestoneModal, GroomModal, SettingsModal, SignUpModal, LoginModal } from "./components/Modals";
 import CalendarModal from "./components/CalendarModal";
 import { todayStr, isToday, timeAgo, formatDateTime, ageFromBirthdate, chaosLevel } from "./lib/helpers";
+import { supabase } from "./supabaseClient";
 
 export default function App() {
+  const [session, setSession] = useState(undefined);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  if (session === undefined) {
+    return (
+      <div style={{ background: "#FBF3E7" }} className="min-h-screen flex items-center justify-center p-8">
+        <div className="text-[#6B6259] font-serif italic">opening Laila's story…</div>
+      </div>
+    );
+  }
+
+  return session ? <Dashboard /> : <SignedOutScreen />;
+}
+
+function SignedOutScreen() {
+  const [mode, setMode] = useState("login");
+
+  return (
+    <div className="min-h-screen relative overflow-hidden" style={{ background: "#FBF3E7" }}>
+      <div aria-hidden="true" className="pointer-events-none select-none blur-sm opacity-60">
+        <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "#E2793D" }}>
+              <Cat size={22} color="#FBF3E7" />
+            </div>
+            <div>
+              <h1 className="font-display text-2xl sm:text-3xl font-semibold" style={{ color: "#2E2A26" }}>Tales of Laila</h1>
+              <p className="text-sm" style={{ color: "#6B6259" }}>Her days, all in one place</p>
+            </div>
+          </div>
+          <div className="rounded-2xl p-6 mb-4 h-52" style={{ background: "#FFFCF7", border: "1px solid #EFE3CE" }}>
+            <div className="h-3 w-32 rounded mb-5" style={{ background: "#EFE3CE" }} />
+            <div className="h-9 w-44 rounded mb-8" style={{ background: "#F3D9A0" }} />
+            <div className="h-12 rounded-xl" style={{ background: "#E2793D" }} />
+          </div>
+          <div className="grid grid-cols-3 gap-2.5 mb-4">
+            {["#F3D9A0", "#D8E3D2", "#E1DCF3"].map((color) => (
+              <div key={color} className="h-28 rounded-xl p-4" style={{ background: "#FFFCF7", border: "1px solid #EFE3CE" }}>
+                <div className="w-8 h-8 rounded-full" style={{ background: color }} />
+              </div>
+            ))}
+          </div>
+          <div className="rounded-2xl h-56" style={{ background: "#FFFCF7", border: "1px solid #EFE3CE" }} />
+        </div>
+      </div>
+      {mode === "login" ? (
+        <LoginModal onShowSignUp={() => setMode("signup")} />
+      ) : (
+        <SignUpModal onClose={() => setMode("login")} onShowLogin={() => setMode("login")} dismissible={false} />
+      )}
+    </div>
+  );
+}
+
+function Dashboard() {
   const { profile, data, loading, error, setError, insertRow, deleteRow, saveProfile } = useLailaData();
 
   const [showSettings, setShowSettings] = useState(false);
@@ -115,6 +179,15 @@ export default function App() {
               aria-label="Settings"
             >
               <Settings size={18} color="#6B6259" />
+            </button>
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="p-2 rounded-full hover:bg-black/5 transition-colors focus:outline-none focus-visible:ring-2"
+              style={{ ["--tw-ring-color"]: "#E2793D" }}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut size={18} color="#6B6259" />
             </button>
           </div>
         </div>

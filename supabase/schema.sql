@@ -45,11 +45,7 @@ create table if not exists milestones (
   description text not null
 );
 
--- Row Level Security: OFF for now since this app has no auth yet (single-user,
--- personal use, anon key only). This means anyone with your deployed URL's
--- anon key could read/write the data. That's an acceptable tradeoff for a
--- personal for-fun project, but if you ever add a cat-sitter/partner login or
--- make the URL public, add Supabase Auth + RLS policies scoped to auth.uid().
+-- Only signed-in Supabase users may read or change dashboard data.
 
 alter table profile enable row level security;
 alter table feedings enable row level security;
@@ -59,10 +55,26 @@ alter table zoomies_logs enable row level security;
 alter table weights enable row level security;
 alter table milestones enable row level security;
 
-create policy "public read/write - profile" on profile for all using (true) with check (true);
-create policy "public read/write - feedings" on feedings for all using (true) with check (true);
-create policy "public read/write - litter_logs" on litter_logs for all using (true) with check (true);
-create policy "public read/write - grooming_logs" on grooming_logs for all using (true) with check (true);
-create policy "public read/write - zoomies_logs" on zoomies_logs for all using (true) with check (true);
-create policy "public read/write - weights" on weights for all using (true) with check (true);
-create policy "public read/write - milestones" on milestones for all using (true) with check (true);
+drop policy if exists "public read/write - profile" on profile;
+drop policy if exists "public read/write - feedings" on feedings;
+drop policy if exists "public read/write - litter_logs" on litter_logs;
+drop policy if exists "public read/write - grooming_logs" on grooming_logs;
+drop policy if exists "public read/write - zoomies_logs" on zoomies_logs;
+drop policy if exists "public read/write - weights" on weights;
+drop policy if exists "public read/write - milestones" on milestones;
+
+drop policy if exists "authenticated access - profile" on profile;
+drop policy if exists "authenticated access - feedings" on feedings;
+drop policy if exists "authenticated access - litter_logs" on litter_logs;
+drop policy if exists "authenticated access - grooming_logs" on grooming_logs;
+drop policy if exists "authenticated access - zoomies_logs" on zoomies_logs;
+drop policy if exists "authenticated access - weights" on weights;
+drop policy if exists "authenticated access - milestones" on milestones;
+
+create policy "authenticated access - profile" on profile for all to authenticated using (true) with check (true);
+create policy "authenticated access - feedings" on feedings for all to authenticated using (true) with check (true);
+create policy "authenticated access - litter_logs" on litter_logs for all to authenticated using (true) with check (true);
+create policy "authenticated access - grooming_logs" on grooming_logs for all to authenticated using (true) with check (true);
+create policy "authenticated access - zoomies_logs" on zoomies_logs for all to authenticated using (true) with check (true);
+create policy "authenticated access - weights" on weights for all to authenticated using (true) with check (true);
+create policy "authenticated access - milestones" on milestones for all to authenticated using (true) with check (true);

@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { todayStr, nowTimeStr, inputStyle } from "../lib/helpers";
+import { supabase } from "../supabaseClient";
 
-export function ModalShell({ title, onClose, children }) {
+export function ModalShell({ title, onClose, children, dismissible = true }) {
   return (
     <div
       className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50"
@@ -13,9 +14,11 @@ export function ModalShell({ title, onClose, children }) {
           <h3 className="font-display text-lg font-semibold" style={{ color: "#2E2A26" }}>
             {title}
           </h3>
-          <button onClick={onClose} aria-label="Close">
-            <X size={18} color="#6B6259" />
-          </button>
+          {dismissible && (
+            <button onClick={onClose} aria-label="Close">
+              <X size={18} color="#6B6259" />
+            </button>
+          )}
         </div>
         {children}
       </div>
@@ -230,6 +233,137 @@ export function SettingsModal({ profile, onClose, onSubmit }) {
           Save
         </button>
       </div>
+    </ModalShell>
+  );
+}
+
+export function SignUpModal({ onClose, onShowLogin, dismissible = true }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+
+    if (password.length < 8) {
+      setError("Use at least 8 characters for your password.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Those passwords don't match yet.");
+      return;
+    }
+
+    setSubmitting(true);
+    const { error: signUpError } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    setSubmitting(false);
+
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
+    }
+    setSuccess(true);
+  };
+
+  return (
+    <ModalShell title={success ? "Check your inbox" : "Create an account"} onClose={onClose} dismissible={dismissible}>
+      {success ? (
+        <div className="space-y-4">
+          <div className="rounded-xl p-4" style={{ background: "#EEF3EB", color: "#4E6B45" }}>
+            <p className="font-semibold text-sm mb-1">One last little step</p>
+            <p className="text-sm leading-relaxed">
+              We sent a confirmation link to <strong>{email.trim()}</strong>. Open it to finish creating your account.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="w-full py-2.5 rounded-lg font-semibold text-sm" style={{ background: "#E2793D", color: "#FFFCF7" }}>
+            Got it
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <p className="text-sm leading-relaxed" style={{ color: "#6B6259" }}>
+            Make an account to keep Laila's stories close and private.
+          </p>
+          <div>
+            <label htmlFor="signup-email" className="text-xs font-mono block mb-1" style={{ color: "#6B6259" }}>Email</label>
+            <input id="signup-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none focus-visible:ring-2" style={{ ...inputStyle, ["--tw-ring-color"]: "#E2793D" }} />
+          </div>
+          <div>
+            <label htmlFor="signup-password" className="text-xs font-mono block mb-1" style={{ color: "#6B6259" }}>Password</label>
+            <input id="signup-password" type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none focus-visible:ring-2" style={{ ...inputStyle, ["--tw-ring-color"]: "#E2793D" }} />
+          </div>
+          <div>
+            <label htmlFor="signup-confirm-password" className="text-xs font-mono block mb-1" style={{ color: "#6B6259" }}>Confirm password</label>
+            <input id="signup-confirm-password" type="password" autoComplete="new-password" required minLength={8} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Type it once more" className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none focus-visible:ring-2" style={{ ...inputStyle, ["--tw-ring-color"]: "#E2793D" }} />
+          </div>
+          {error && <p className="rounded-lg px-3 py-2 text-sm" style={{ background: "#FBEAEA", color: "#B84A4A" }} role="alert">{error}</p>}
+          <button type="submit" disabled={submitting} className="w-full py-2.5 rounded-lg font-semibold text-sm transition-opacity disabled:opacity-60" style={{ background: "#E2793D", color: "#FFFCF7" }}>
+            {submitting ? "Creating account…" : "Create account"}
+          </button>
+          <p className="text-center text-xs" style={{ color: "#6B6259" }}>
+            Already have an account?{" "}
+            <button type="button" onClick={onShowLogin} className="font-semibold underline underline-offset-2" style={{ color: "#B85F30" }}>
+              Sign in
+            </button>
+          </p>
+        </form>
+      )}
+    </ModalShell>
+  );
+}
+
+export function LoginModal({ onShowSignUp }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setSubmitting(true);
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    setSubmitting(false);
+
+    if (signInError) setError("We couldn't sign you in. Check your email and password.");
+  };
+
+  return (
+    <ModalShell title="Welcome back" dismissible={false}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <p className="text-sm leading-relaxed" style={{ color: "#6B6259" }}>
+          Sign in to visit Laila's command center.
+        </p>
+        <div>
+          <label htmlFor="login-email" className="text-xs font-mono block mb-1" style={{ color: "#6B6259" }}>Email</label>
+          <input id="login-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none focus-visible:ring-2" style={{ ...inputStyle, ["--tw-ring-color"]: "#E2793D" }} />
+        </div>
+        <div>
+          <label htmlFor="login-password" className="text-xs font-mono block mb-1" style={{ color: "#6B6259" }}>Password</label>
+          <input id="login-password" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Your password" className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none focus-visible:ring-2" style={{ ...inputStyle, ["--tw-ring-color"]: "#E2793D" }} />
+        </div>
+        {error && <p className="rounded-lg px-3 py-2 text-sm" style={{ background: "#FBEAEA", color: "#B84A4A" }} role="alert">{error}</p>}
+        <button type="submit" disabled={submitting} className="w-full py-2.5 rounded-lg font-semibold text-sm transition-opacity disabled:opacity-60" style={{ background: "#E2793D", color: "#FFFCF7" }}>
+          {submitting ? "Signing in…" : "Sign in"}
+        </button>
+        <p className="text-center text-xs" style={{ color: "#6B6259" }}>
+          New here?{" "}
+          <button type="button" onClick={onShowSignUp} className="font-semibold underline underline-offset-2" style={{ color: "#B85F30" }}>
+            Create an account
+          </button>
+        </p>
+      </form>
     </ModalShell>
   );
 }

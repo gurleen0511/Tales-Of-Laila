@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
-import { todayStr, nowTimeStr, inputStyle } from "../lib/helpers";
+import { todayStr, nowTimeStr, localDateTimeToIso, inputStyle } from "../lib/helpers";
 import { supabase } from "../supabaseClient";
 
 export function ModalShell({ title, onClose, children, dismissible = true }) {
@@ -31,9 +31,21 @@ export function FeedModal({ onClose, onSubmit }) {
   const [food, setFood] = useState("");
   const [date, setDate] = useState(todayStr());
   const [time, setTime] = useState(nowTimeStr());
+  const [error, setError] = useState("");
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const timestamp = localDateTimeToIso(date, time);
+    if (!timestamp) {
+      setError("Choose a valid date and time.");
+      return;
+    }
+    onSubmit({ amount: amount || null, food: food || null, time: timestamp });
+  };
+
   return (
     <ModalShell title="Log a feeding" onClose={onClose}>
-      <div className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <input
           placeholder="Amount (optional, e.g. 1/4 cup)"
           value={amount}
@@ -54,10 +66,10 @@ export function FeedModal({ onClose, onSubmit }) {
               Date
             </label>
             <input
-              type="text"
+              type="date"
+              required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              placeholder="YYYY-MM-DD"
               className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none"
               style={inputStyle}
             />
@@ -67,32 +79,52 @@ export function FeedModal({ onClose, onSubmit }) {
               Time
             </label>
             <input
-              type="text"
+              type="time"
+              required
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              placeholder="14:30"
               className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none"
               style={inputStyle}
             />
           </div>
         </div>
+        {error && <p className="text-sm" style={{ color: "#B84A4A" }} role="alert">{error}</p>}
         <button
-          onClick={() => {
-            let ts;
-            try {
-              ts = new Date(`${date}T${time}:00`).toISOString();
-              if (ts === "Invalid Date") throw new Error("bad date");
-            } catch (e) {
-              ts = new Date().toISOString();
-            }
-            onSubmit({ amount: amount || null, food: food || null, time: ts });
-          }}
+          type="submit"
           className="w-full py-2.5 rounded-lg font-semibold text-sm"
           style={{ background: "#E2793D", color: "#FFFCF7" }}
         >
           Save
         </button>
-      </div>
+      </form>
+    </ModalShell>
+  );
+}
+
+export function LitterModal({ onClose, onSubmit }) {
+  const [date, setDate] = useState(todayStr());
+  const [time, setTime] = useState(nowTimeStr());
+  const [error, setError] = useState("");
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const timestamp = localDateTimeToIso(date, time);
+    if (!timestamp) {
+      setError("Choose a valid date and time.");
+      return;
+    }
+    onSubmit({ time: timestamp });
+  };
+
+  return (
+    <ModalShell title="Log a litter visit" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <DateTimeFields date={date} time={time} onDateChange={setDate} onTimeChange={setTime} />
+        {error && <p className="text-sm" style={{ color: "#B84A4A" }} role="alert">{error}</p>}
+        <button type="submit" className="w-full py-2.5 rounded-lg font-semibold text-sm" style={{ background: "#E2793D", color: "#FFFCF7" }}>
+          Save
+        </button>
+      </form>
     </ModalShell>
   );
 }
@@ -177,64 +209,89 @@ export function MilestoneModal({ onClose, onSubmit }) {
 
 export function GroomModal({ onClose, onSubmit }) {
   const kinds = ["Brushing", "Nail trim", "Bath", "Ear clean"];
+  const [kind, setKind] = useState(kinds[0]);
+  const [date, setDate] = useState(todayStr());
+  const [time, setTime] = useState(nowTimeStr());
+  const [error, setError] = useState("");
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const timestamp = localDateTimeToIso(date, time);
+    if (!timestamp) {
+      setError("Choose a valid date and time.");
+      return;
+    }
+    onSubmit({ kind, time: timestamp });
+  };
+
   return (
     <ModalShell title="Log grooming" onClose={onClose}>
-      <div className="grid grid-cols-2 gap-2">
-        {kinds.map((k) => (
-          <button
-            key={k}
-            onClick={() => onSubmit({ kind: k })}
-            className="py-2.5 rounded-lg font-semibold text-sm"
-            style={{ background: "#E1DCF3", color: "#5B4E96" }}
-          >
-            {k}
-          </button>
-        ))}
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          {kinds.map((option) => (
+            <button
+              type="button"
+              key={option}
+              onClick={() => setKind(option)}
+              aria-pressed={kind === option}
+              className="py-2.5 rounded-lg font-semibold text-sm"
+              style={{ background: kind === option ? "#8A7FBF" : "#E1DCF3", color: kind === option ? "#FFFCF7" : "#5B4E96" }}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+        <DateTimeFields date={date} time={time} onDateChange={setDate} onTimeChange={setTime} />
+        {error && <p className="text-sm" style={{ color: "#B84A4A" }} role="alert">{error}</p>}
+        <button type="submit" className="w-full py-2.5 rounded-lg font-semibold text-sm" style={{ background: "#E2793D", color: "#FFFCF7" }}>
+          Save
+        </button>
+      </form>
+    </ModalShell>
+  );
+}
+
+function DateTimeFields({ date, time, onDateChange, onTimeChange }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <div>
+        <label className="text-xs font-mono block mb-1" style={{ color: "#6B6259" }}>Date</label>
+        <input type="date" required value={date} onChange={(event) => onDateChange(event.target.value)} className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none" style={inputStyle} />
+      </div>
+      <div>
+        <label className="text-xs font-mono block mb-1" style={{ color: "#6B6259" }}>Time</label>
+        <input type="time" required value={time} onChange={(event) => onTimeChange(event.target.value)} className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none" style={inputStyle} />
+      </div>
+    </div>
+  );
+}
+
+export function ProfileModal({ profile, onClose, onSubmit, dismissible = true }) {
+  const [name, setName] = useState(profile?.name || "Laila");
+  const [birthdate, setBirthdate] = useState(profile?.birthdate || "");
+  return (
+    <ModalShell title="Kitten profile" onClose={onClose} dismissible={dismissible}>
+      <div className="space-y-4">
+        <p className="text-sm" style={{ color: "#6B6259" }}>You’ll only need to update these details if something changes.</p>
+        <div>
+          <label className="text-xs font-mono block mb-1" style={{ color: "#6B6259" }}>Name</label>
+          <input required value={name} onChange={(e) => setName(e.target.value)} className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none" style={inputStyle} />
+        </div>
+        <div>
+          <label className="text-xs font-mono block mb-1" style={{ color: "#6B6259" }}>Birthdate</label>
+          <input type="date" value={birthdate} onChange={(e) => setBirthdate(e.target.value)} className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none" style={inputStyle} />
+        </div>
+        <button onClick={() => onSubmit({ name: name.trim() || "Laila", birthdate: birthdate || null })} className="w-full py-2.5 rounded-lg font-semibold text-sm" style={{ background: "#E2793D", color: "#FFFCF7" }}>
+          Save profile
+        </button>
       </div>
     </ModalShell>
   );
 }
 
-export function SettingsModal({ profile, onClose, onSubmit }) {
-  const [name, setName] = useState(profile?.name || "Laila");
-  const [birthdate, setBirthdate] = useState(profile?.birthdate || "");
-  return (
-    <ModalShell title="Kitten settings" onClose={onClose}>
-      <div className="space-y-4">
-        <div>
-          <label className="text-xs font-mono block mb-1" style={{ color: "#6B6259" }}>
-            Name
-          </label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none"
-            style={inputStyle}
-          />
-        </div>
-        <div>
-          <label className="text-xs font-mono block mb-1" style={{ color: "#6B6259" }}>
-            Birthdate
-          </label>
-          <input
-            type="text"
-            value={birthdate}
-            onChange={(e) => setBirthdate(e.target.value)}
-            placeholder="YYYY-MM-DD"
-            className="w-full block px-3 py-2 rounded-lg text-sm focus:outline-none"
-            style={inputStyle}
-          />
-        </div>
-        <button
-          onClick={() => onSubmit({ name, birthdate: birthdate || null })}
-          className="w-full py-2.5 rounded-lg font-semibold text-sm"
-          style={{ background: "#E2793D", color: "#FFFCF7" }}
-        >
-          Save
-        </button>
-      </div>
-    </ModalShell>
-  );
+/* Legacy export retained for compatibility with older imports. */
+export function SettingsModal(props) {
+  return <ProfileModal {...props} />;
 }
 
 export function SignUpModal({ onClose, onShowLogin, dismissible = true }) {

@@ -109,8 +109,10 @@ export function useLailaData() {
       if (result.error) throw result.error;
       setProfile(result.data);
       setError("");
+      return result.data;
     } catch (e) {
       setError("Couldn't save profile — try again.");
+      return null;
     }
   };
 

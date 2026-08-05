@@ -6,7 +6,6 @@ import {
   Sparkles,
   TrendingUp,
   Star,
-  Settings,
   Plus,
   Cat,
   Trash2,
@@ -16,9 +15,9 @@ import {
   X,
 } from "lucide-react";
 import { useLailaData } from "./lib/useLailaData";
-import { FeedModal, WeightModal, MilestoneModal, GroomModal, SettingsModal, SignUpModal, LoginModal } from "./components/Modals";
+import { FeedModal, LitterModal, WeightModal, MilestoneModal, GroomModal, ProfileModal, SignUpModal, LoginModal } from "./components/Modals";
 import CalendarModal from "./components/CalendarModal";
-import { todayStr, isToday, timeAgo, formatDateTime, ageFromBirthdate, chaosLevel } from "./lib/helpers";
+import { todayStr, isToday, localDateKey, timeAgo, formatDateTime, ageFromBirthdate, chaosLevel } from "./lib/helpers";
 import { supabase } from "./supabaseClient";
 
 export default function App() {
@@ -86,8 +85,9 @@ function SignedOutScreen() {
 function Dashboard() {
   const { profile, data, loading, error, setError, insertRow, deleteRow, saveProfile } = useLailaData();
 
-  const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [showFeedForm, setShowFeedForm] = useState(false);
+  const [showLitterForm, setShowLitterForm] = useState(false);
   const [showWeightForm, setShowWeightForm] = useState(false);
   const [showMilestoneForm, setShowMilestoneForm] = useState(false);
   const [showGroomForm, setShowGroomForm] = useState(false);
@@ -107,7 +107,7 @@ function Dashboard() {
       ...data.litter.map((e) => ({ ...e, type: "litter" })),
       ...data.grooming.map((e) => ({ ...e, type: "grooming" })),
     ];
-    return all.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 25);
+    return all.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 3);
   }, [data]);
 
   const chartData = useMemo(() => data.weights.map((w) => ({ date: w.date.slice(5), value: w.value })), [data.weights]);
@@ -128,10 +128,10 @@ function Dashboard() {
       if (!map[dateStr]) map[dateStr] = { zoomies: [], feedings: [], litter: [], grooming: [], weights: [], milestones: [] };
       map[dateStr][bucket].push(entry);
     };
-    data.zoomies.forEach((e) => addTo(e.time.slice(0, 10), "zoomies", e));
-    data.feedings.forEach((e) => addTo(e.time.slice(0, 10), "feedings", e));
-    data.litter.forEach((e) => addTo(e.time.slice(0, 10), "litter", e));
-    data.grooming.forEach((e) => addTo(e.time.slice(0, 10), "grooming", e));
+    data.zoomies.forEach((e) => addTo(localDateKey(e.time), "zoomies", e));
+    data.feedings.forEach((e) => addTo(localDateKey(e.time), "feedings", e));
+    data.litter.forEach((e) => addTo(localDateKey(e.time), "litter", e));
+    data.grooming.forEach((e) => addTo(localDateKey(e.time), "grooming", e));
     data.weights.forEach((e) => addTo(e.date, "weights", e));
     data.milestones.forEach((e) => addTo(e.date, "milestones", e));
     return map;
@@ -150,7 +150,12 @@ function Dashboard() {
       <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12">
         {/* Header */}
         <div className="flex items-start justify-between mb-8">
-          <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowProfile(true)}
+            className="flex items-center gap-3 text-left rounded-xl focus:outline-none focus-visible:ring-2"
+            style={{ ["--tw-ring-color"]: "#E2793D" }}
+            aria-label="Edit kitten profile"
+          >
             <div style={{ background: "#E2793D" }} className="w-11 h-11 rounded-full flex items-center justify-center shrink-0">
               <Cat size={22} color="#FBF3E7" strokeWidth={2} />
             </div>
@@ -162,7 +167,7 @@ function Dashboard() {
                 {ageFromBirthdate(profile?.birthdate) || "Age unknown — set her birthdate"}
               </p>
             </div>
-          </div>
+          </button>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setShowCalendar(true)}
@@ -171,14 +176,6 @@ function Dashboard() {
               aria-label="View calendar"
             >
               <Calendar size={18} color="#6B6259" />
-            </button>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="p-2 rounded-full hover:bg-black/5 transition-colors focus:outline-none focus-visible:ring-2"
-              style={{ ["--tw-ring-color"]: "#E2793D" }}
-              aria-label="Settings"
-            >
-              <Settings size={18} color="#6B6259" />
             </button>
             <button
               onClick={() => supabase.auth.signOut()}
@@ -271,7 +268,7 @@ function Dashboard() {
           </button>
 
           <button
-            onClick={() => insertRow("litter", {})}
+            onClick={() => setShowLitterForm(true)}
             className="rounded-xl p-3.5 flex flex-col items-start gap-2 transition-transform active:scale-95 focus:outline-none focus-visible:ring-2"
             style={{ background: "#FFFCF7", border: "1px solid #EFE3CE", ["--tw-ring-color"]: "#7C9473" }}
           >
@@ -363,7 +360,7 @@ function Dashboard() {
             <p className="text-sm italic py-2" style={{ color: "#B5AA9C" }}>No milestones logged yet.</p>
           ) : (
             <ul className="space-y-3">
-              {data.milestones.map((m) => (
+              {data.milestones.slice(0, 3).map((m) => (
                 <li key={m.id} className="flex items-start gap-3 group">
                   <div className="w-1.5 h-1.5 rounded-full mt-2 shrink-0" style={{ background: "#E2793D" }} />
                   <div className="flex-1">
@@ -380,6 +377,11 @@ function Dashboard() {
                 </li>
               ))}
             </ul>
+          )}
+          {data.milestones.length > 3 && (
+            <button onClick={() => setShowCalendar(true)} className="mt-4 text-xs font-semibold" style={{ color: "#B85F30" }}>
+              View older milestones in history
+            </button>
           )}
         </div>
 
@@ -437,8 +439,8 @@ function Dashboard() {
         <FeedModal
           onClose={() => setShowFeedForm(false)}
           onSubmit={async (row) => {
-            await insertRow("feedings", row);
-            setShowFeedForm(false);
+            const inserted = await insertRow("feedings", row);
+            if (inserted) setShowFeedForm(false);
           }}
         />
       )}
@@ -448,6 +450,15 @@ function Dashboard() {
           onSubmit={async (row) => {
             await insertRow("weights", row);
             setShowWeightForm(false);
+          }}
+        />
+      )}
+      {showLitterForm && (
+        <LitterModal
+          onClose={() => setShowLitterForm(false)}
+          onSubmit={async (row) => {
+            const inserted = await insertRow("litter", row);
+            if (inserted) setShowLitterForm(false);
           }}
         />
       )}
@@ -464,21 +475,22 @@ function Dashboard() {
         <GroomModal
           onClose={() => setShowGroomForm(false)}
           onSubmit={async (row) => {
-            await insertRow("grooming", row);
-            setShowGroomForm(false);
+            const inserted = await insertRow("grooming", row);
+            if (inserted) setShowGroomForm(false);
           }}
         />
       )}
       {showCalendar && (
         <CalendarModal dayMap={dayMap} onClose={() => setShowCalendar(false)} onDelete={(type, id) => deleteRow(type, id)} />
       )}
-      {(showSettings || !profile) && (
-        <SettingsModal
+      {(showProfile || !profile) && (
+        <ProfileModal
           profile={profile}
-          onClose={() => setShowSettings(false)}
+          dismissible={Boolean(profile)}
+          onClose={() => setShowProfile(false)}
           onSubmit={async (next) => {
-            await saveProfile(next);
-            setShowSettings(false);
+            const saved = await saveProfile(next);
+            if (saved) setShowProfile(false);
           }}
         />
       )}

@@ -83,10 +83,10 @@ supabase/schema.sql             database setup
 
 ## A quick security note
 
-The app doesn't currently have sign-in. The database policies allow anyone
-with access to the deployed app and its publishable key to read and update the
-tracker data. That's workable for a private personal project, but authentication
-should be added before sharing it widely.
+The app uses Supabase email/password sign-in, and its database policies only
+allow authenticated users to read or update tracker data. All signed-in users
+currently share the same tracker records, so user-specific ownership should be
+added before inviting unrelated people.
 
 ## Adding it to a phone
 

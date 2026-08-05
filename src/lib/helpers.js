@@ -1,6 +1,20 @@
-export const todayStr = () => new Date().toISOString().slice(0, 10);
-export const isToday = (iso) => iso.slice(0, 10) === todayStr();
+export const todayStr = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+export const isToday = (iso) => localDateKey(iso) === todayStr();
 export const nowTimeStr = () => new Date().toTimeString().slice(0, 5);
+
+export function localDateTimeToIso(date, time) {
+  const value = new Date(`${date}T${time}`);
+  return Number.isNaN(value.getTime()) ? null : value.toISOString();
+}
+
+export function localDateKey(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 export function timeAgo(iso) {
   const diff = Date.now() - new Date(iso).getTime();
